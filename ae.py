@@ -45,22 +45,32 @@ for i in range(len(file_names)):
 
 print(train_data.shape)
 
+# Hard coding in for debugging
+# model = keras.Sequential([
+#   keras.layers.Dense(nps*3, activation='relu'),
+#   keras.layers.Dense(((nps-1)*3), activation='relu'),
+#   keras.layers.Dense(3, activation='relu'),
+#   keras.layers.Dense(((nps-1)*3), activation='relu'),
+#   keras.layers.Dense((nps*3))
+# ])
 model = keras.Sequential([
-  keras.layers.Dense(nps*3, activation='relu'),
-  keras.layers.Dense(((nps-1)*3), activation='relu'),
-  keras.layers.Dense(3, activation='relu'),
-  keras.layers.Dense(((nps-1)*3), activation='relu'),
-  keras.layers.Dense((nps*3))
+  keras.layers.Dense(12, input_shape=(12,)),
+  keras.layers.Dense(9, activation='relu'),
+  keras.layers.Dense(6, activation='relu'),
+  keras.layers.Dense(9, activation='relu'),
+  keras.layers.Dense(12)
 ])
 
+model.summary()
+
 model.compile(optimizer='adam', loss=keras.losses.mean_squared_error, metrics=['accuracy'])
-model.fit(train_data, train_data, epochs=100)
+model.fit(train_data, train_data, epochs=1000)
 test_loss, test_acc = model.evaluate(train_data, train_data, verbose=2)
 print('\nTest accuracy:', test_acc)
 
 if single:
-  model.save("saved_models\single_{}".format(nps))
+  model.save("saved_models/single_{}".format(nps))
 elif right:
-  model.save("saved_models\right_{}".format(nps))
+  model.save("saved_models/right_{}".format(nps))
 elif left:
-  model.save("saved_models\left_{}".format(nps))
+  model.save("saved_models/left_{}".format(nps))
