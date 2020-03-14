@@ -123,7 +123,7 @@ for key, notes in train_blocks.items():
 
 # Save the array out for future use
 if single:
-  np.savetxt("midis/single/{}.txt".format(file_name),train_blocks['single'])
+  np.savetxt("midis/single/{}/{}.txt".format(nps, file_name),train_blocks['single'])
 else:
-  np.savetxt("midis/left/{}.txt".format(file_name), train_blocks['left'])
-  np.savetxt("midis/right/{}.txt".format(file_name), train_blocks['right'])
+  np.savetxt("midis/left/{}/{}.txt".format(nps, file_name), train_blocks['left'])
+  np.savetxt("midis/right/{}/{}.txt".format(nps, file_name), train_blocks['right'])

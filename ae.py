@@ -1,86 +1,66 @@
 import argparse
 import numpy as np
-import mido
-from tempfile import TemporaryFile
+import glob
+import os
+
+import tensorflow as tf
+from tensorflow import keras
 
 # ARG PARSING
 parser = argparse.ArgumentParser()
-parser.add_argument("file_name", help="Midi file to load from")
 parser.add_argument("nps", help="Number of notes per block", type=int)
-parser.add_argument("-s", "--single", help="Whether to merge tracks into a single track", action="store_true")
+group = parser.add_mutually_exclusive_group()
+group.add_argument("-l", "--left", help="Use left hand data", action="store_true")
+group.add_argument("-r", "--right", help="Use right hand data", action="store_true")
+group.add_argument("-s", "--single", help="Use single track data", action="store_true")
 args = parser.parse_args()
 
 # Notes per block
 nps = args.nps
 # Flag to merge tracks or keep separate
 single = args.single
-# Midi file name
-file_name = args.file_name
+right = args.right
+left = args.left
 
-# PREPROCESSING
-# We will remove all non-note messages and then turn
-# the data into an array of size (# of msg x 3), where
-# each message will consist of its note, velocity, and time
-mid = mido.MidiFile("./midis/base/"+file_name, clip=True)
+# Find all matching files
+if single:
+  directory = "midis\single\{}".format(nps)
+  file_names = glob.glob(os.path.join(directory, '*.txt'))
+elif right:
+  directory = "midis\right\{}".format(nps)
+  file_names = glob.glob(os.path.join(directory, '*.txt'))
+elif left:
+  directory = "midis\left\{}".format(nps)
+  file_names = glob.glob(os.path.join(directory, '*.txt'))
+else:
+  print("Bad flags, exiting")
+  exit()
 
-metas = []
-controls = []
 
-# Find meta tracks
-for track in mid.tracks:
-  if len(track) < 10:
-    metas.append(track)
+for i in range(len(file_names)):
+  if i==0:
+    train_data = np.array(np.loadtxt(file_names[i]))
+  else:
+    np.append(train_data, np.loadtxt(file_names[i]), axis=0)
 
-# Remove meta tracks
-for track in metas:
-  mid.tracks.remove(track)
+print(train_data.shape)
 
-# Remove non-note messages
-for track in mid.tracks:
-  # Find control msgs
-  for msg in track:
-    if msg.type != 'note_on':
-      controls.append(msg)
+model = keras.Sequential([
+  keras.layers.Dense(nps*3, activation='relu'),
+  keras.layers.Dense(((nps-1)*3), activation='relu'),
+  keras.layers.Dense(3, activation='relu'),
+  keras.layers.Dense(((nps-1)*3), activation='relu'),
+  keras.layers.Dense((nps*3))
+])
 
-  # Remove control msgs
-  for msg in controls:
-    track.remove(msg)
+model.compile(optimizer='adam', loss=keras.losses.mean_squared_error, metrics=['accuracy'])
+model.fit(train_data, train_data, epochs=100)
+test_loss, test_acc = model.evaluate(train_data, train_data, verbose=2)
+print('\nTest accuracy:', test_acc)
 
-  # Reset controls for next track
-  controls = []
-
-# Turn tracks into np.arrays where each message is a row and
-# each message is: [note, velocity, time]
-train_blocks = []
-for track in mid.tracks:
-  for msg in track:
-    train_blocks.append([msg.note, msg.velocity, msg.time])
-
-# Turn list into an np.array
-train_blocks = np.array(train_blocks)
-
-# Turn the individual messages into blocks of length: 'nps'*3
-# where each message consists of note, velocity, and time.
-for track in mid.tracks:
-  for i in range(nps-1, track.len()):
-    if train_blocks == None:
-      train_blocks = np.array(track)
-    else:
-      train_blocks.append()
-
-# Save the array out for future use
-outfile = TemporaryFile()
-np.save(outfile, train_blocks)
-
-# model = keras.Sequential([
-#   keras.layers.Flatten(input_shape=(nps, 3)),
-#   keras.layers.Dense(((nps-1)*3), activation='relu'),
-#   keras.layers.Dense(3, activation='relu'),
-#   keras.layers.Dense(((nps-1)*3), activation='relu'),
-#   keras.layers.Dense((nps*3))
-# ])
-
-# model.compile(optimizer='adam', loss=tf.keras.losses.mean_squared_error, metrics=['accuracy'])
-# model.fit(train_blocks, train_blocks, epochs=10)
-# test_loss, test_acc = model.evaluate(train_blocks, train_blocks, verbose=2)
-# print('\nTest accuracy:', test_acc)
+if single:
+  model.save("saved_models\single_{}".format(nps))
+elif right:
+  model.save("saved_models\right_{}".format(nps))
+elif left:
+  model.save("saved_models\left_{}".format(nps))
